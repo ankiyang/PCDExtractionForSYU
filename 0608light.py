@@ -1,9 +1,14 @@
 #!/usr/bin/local/python3.6
 # -*- coding: utf-8 -*-
 
+import os
+import json
 import csv
+import time
 from docx import Document
 from electron_microscope import elec_lines
+
+
 from test import FileHandler
 
 res_dict = dict()
@@ -15,6 +20,7 @@ class LightHandler(FileHandler):
         super().__init__(file_path)
 
     def parsing_word(self):
+        electron_info = elec_lines()
         f = Document(self.file_path)
 
         tem_lst = list()
@@ -26,6 +32,7 @@ class LightHandler(FileHandler):
                 case_handler = CaseHandler(tem_lst)
                 case_handler.dealing_()
                 print(case_handler.attr_dict)
+                case_handler.check_repe(electron_info)
                 case_handler.line_creation()
 
                 tem_lst = list()
@@ -62,10 +69,11 @@ class CaseHandler(object):
         csv_write.writerow(line)
         out.close()
 
-    def check_repe(self):
-        electron_info = elec_lines()
+    def check_repe(self, electron_info):
+        if not self.attr_dict:
+            return
         light_name_number = "%s,%s" % (self.attr_dict['name'], self.attr_dict['admission_number'])
-        if light_name_number in electron_info :
+        if light_name_number in electron_info and not self.attr_dict['elec_info']:
             self.attr_dict['elec_info'] = electron_info[light_name_number][-1]
 
         file = open("repeat_record.txt", encoding="utf-8", mode="a")
