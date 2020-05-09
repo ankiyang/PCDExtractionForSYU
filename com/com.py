@@ -3,6 +3,7 @@
 
 import os
 import csv
+import copy
 import pandas as pd
 from datetime import datetime
 import pytest
@@ -14,7 +15,7 @@ class DataDictTable(object):
         self.file_path = file_path
         self.new_file_path = 'new_%s.csv' %self.file_path.split('/')[-1].split('.')[0]
 
-        raw_data = pd.read_csv(self.file_path)
+        raw_data = pd.read_csv(self.file_path, dtype={'入院日期':str, '报告日期':str})
         # print(raw_data)
         # print(raw_data.describe())
         nrow, ncol = raw_data.shape
@@ -92,68 +93,100 @@ class LightFile(DataDictTable):
 
 def compare():
     star_path = "data0115/new_start_table.csv"
-    little_path = "new_外院肾穿.csv"
+    little_path = "data0115/new_外院肾穿.csv"
 
     star_obj = DataDictTable(star_path)
     star_df = star_obj.df
+    star_cp_df = copy.deepcopy(star_df)
 
     little_obj = DataDictTable(little_path)
     little_df = little_obj.df
 
-    name_little_lst = little_df['姓名']
-    name_star_lst = star_df['姓名']
-    for each_name in name_little_lst:
-        try:
-            each_age = int(little_df.loc[little_df['姓名'] == each_name]['年龄'].values[0])
-            each_gender = str(little_df.loc[little_df['姓名'] == each_name]['性别'].values[0])
-            report_date = str(int(little_df.loc[little_df['姓名'] == each_name]['报告日期'].values[0]))
+    for _, each_row in little_df.iterrows():
+        # pytest.set_trace()
+        each_name = str(each_row['姓名'])
+        star_cor_df = star_df.loc[star_df['姓名'] == each_name]
 
-            form_rep_date = format_date(report_date)
-        except Exception:
+        try:
+            little_each_age = int(each_row['年龄'])
+            little_each_gender = str(each_row['性别'])
+            little_report_date = str(int(each_row['报告日期']))
+            little_each_form_rep_date = format_date(little_report_date)
+        except:
             pytest.set_trace()
 
-        if each_name in name_star_lst.values:
-            counts_name = int(name_star_lst.value_counts()[each_name])
-            if counts_name == 1:
-                # print("---", each_name)
-                # pytest.set_trace()
+        if not star_cor_df.empty:
+            if star_cor_df.shape[0] == 1:
+                star_row = star_cor_df.iloc[0]
 
-                star_age = int(star_df.loc[star_df['姓名'] == each_name]['年龄'].values[0])
-                star_gender = star_df[star_df['姓名'] == each_name]['性别'].values[0]
-                admission_date = str(int(star_df[star_df['姓名'] == each_name]['入院日期'].values[0]))
+                star_age = int(star_row['年龄'])
+                star_gender = str(star_row['性别'])
+                admission_date = str(star_row['入院日期'])
                 form_adm_date = format_date(admission_date)
+                date_delta = little_each_form_rep_date.__sub__(form_adm_date).days
 
-                date_delta = form_rep_date.__sub__(form_adm_date).days
-
-                if each_age == star_age and each_gender == star_gender and date_delta <= 60:
-                    pass
+                if abs(little_each_age - star_age) <= 1 \
+                        and little_each_gender == star_gender \
+                        and date_delta <= 60:
+                    fill_col(each_row, star_cp_df, each_name)
                 else:
-                    # print("ddddd", each_name)
-                    pass
-
+                    star_cp_df = add_new_lines(each_row, star_cp_df)
             else:
-                whole_df = star_df.loc[star_df['姓名'] == each_name]
-                for index, row in whole_df.iterrows():
-                    age_ = int(row['年龄'])
-                    gender_ = str(row['性别'])
-                    adm_date_ = str(row['入院日期'])
+                if_find = False
+                for index, star_row in star_cor_df.iterrows():
+                    age_ = int(star_row['年龄'])
+                    gender_ = str(star_row['性别'])
+                    adm_date_ = str(int(star_row['入院日期']))
                     form_adm_date = format_date(adm_date_)
-                    date_delta = form_rep_date.__sub__(form_adm_date).days
-                    if each_age == age_ and each_gender == gender_ and date_delta <= 60:
-                        pass
-                        print("-,-", each_name)
+                    date_delta = little_each_form_rep_date.__sub__(form_adm_date).days
+
+                    if abs(little_each_age - age_) <= 1 \
+                            and little_each_gender == gender_ \
+                            and date_delta <=60:
+                        fill_col(each_row, star_cp_df, each_name,
+                                 each_age=age_, each_gender=gender_, each_date=adm_date_)
+                        if_find = True
+                        break
                     else:
-                        # print("ccc", each_name)
-                        pass
-
-                # if each_age in star_df.loc[star_df['姓名'] == each_name]['年龄'].values:
-                #     print(star_df.loc[star_df['姓名'] == each_name]['年龄'].values)
-                #     if each_gender in star_df.loc[star_df['姓名'] == each_name]['性别'].values:
-                #         print("-,-", each_name)
-
+                        continue
+                if not if_find:
+                    star_cp_df = add_new_lines(each_row, star_cp_df)
+                pass
         else:
-            # print("doesn't exist", each_name)
+            star_cp_df = add_new_lines(each_row, star_cp_df)
             pass
+    pytest.set_trace()
+
+
+def export(df):
+    df.to_excel('new_star_shenchuan.csv')
+    pass
+
+
+def fill_col(little_df, start_df, each_name, each_age=None, each_gender=None, each_date=None):
+    try:
+        if each_age and each_gender and each_date:
+            start_df.loc[(start_df['姓名'] == each_name)
+                         & (start_df['年龄'] == each_age)
+                         & (start_df['性别'] == each_gender)
+                         & (start_df['入院日期'] == each_date),
+                         '光镜+免疫荧光'] = little_df['光镜+免疫荧光']
+        start_df.loc[start_df['姓名'] == each_name, '光镜+免疫荧光'] = little_df['光镜+免疫荧光']
+        print('fill.', each_name)
+    except:
+        pytest.set_trace()
+    return start_df
+
+
+def add_new_lines(little_df, star_df):
+    # 添加新的一行
+    try:
+        print('add.', little_df['姓名'])
+        new_df = star_df.append(little_df, ignore_index=True)
+    except:
+        pytest.set_trace()
+
+    return new_df
 
 
 def format_date(date_string):
