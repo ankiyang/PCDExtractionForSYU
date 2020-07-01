@@ -7,7 +7,7 @@ import copy
 import pandas as pd
 from datetime import datetime
 import pytest
-
+import re
 
 class DataDictTable(object):
 
@@ -26,59 +26,69 @@ class DataDictTable(object):
         pass
 
     def change_date(self):
+        # change date 2000-12-01 --> 20001201
         time_lst = self.df['报告日期']
 
         for (idx, time_) in enumerate(time_lst):
             # pytest.set_trace()
-            # try:
             time_ = time_.split()[0]
-            # pytest.set_trace()
             cday = datetime.strptime(time_, '%Y-%m-%d')
-
             new_data = cday.strftime('%Y%m%d')
 
             self.df['报告日期'][idx] = new_data
-            # except Exception as error:
-            #     print(error)
-            #
 
     def change_age(self):
         age_lst = self.df['年龄']
         for (idx, age_) in enumerate(age_lst):
             if pd.isnull(age_):
-                continue
-            if age_ == 'nan':
                 pytest.set_trace()
-            age_ = age_.strip()
+            age_ = str(age_)
             if '岁' in age_:
                 age_ = age_.strip('岁')
-            elif '月' in age_:
+            elif '月' in age_ or '天' in age_:
                 age_ = 0
-            print(age_)
+            age_ = age_.strip()
+
             self.df['年龄'][idx] = age_
 
     def change_date_2(self):
-        time_lst = self.df['入院日期']
-        for (idx, time_) in enumerate(time_lst):
-            time_ = time_.split()[0]
-            if time_[-2] == '9':
-                year = '19'+ time_[-2:]
-                time_ = time_[:-2] + year
-                # time_ = time_.replace(time_[-2:], '19'+time_[-2:])
-            elif time_[-2] in ['0', '1']:
-                year = '20'+ time_[-2:]
-                time_ = time_[:-2] + year
-                # time_ = time_.replace(time_[-2:], '20'+time_[-2:])
+        # change date 12/01/2000 -> 20001201
+        time_lst = self.df['报告日期']
+        try:
+            for (idx, time_) in enumerate(time_lst):
+                time_ = time_.split()[0]
+                # if time_[-2] == '9':
+                #     year = '19' + time_[-2:]
+                #     time_ = time_[:-2] + year
+                # elif time_[-2] in ['0', '1', '2']:
+                #     year = '20' + time_[-2:]
+                #     time_ = time_[:-2] + year
+                # else:
+                #     pytest.set_trace()
 
-            cday = datetime.strptime(time_, '%m/%d/%Y')
+                cday = datetime.strptime(time_, '%Y/%m/%d')
+                new_data = cday.strftime('%Y%m%d')
 
-            new_data = cday.strftime('%Y%m%d')
-
-            self.df['入院日期'][idx] = new_data
+                self.df['报告日期'][idx] = new_data
+        except:
+            pytest.set_trace()
         pass
 
+    def change_date_3(self):
+        time_lst = self.df['报告日期']
+        try:
+            for (idx, time_) in enumerate(time_lst):
+                time_ = time_.split()[0]
+                # pytest.set_trace()
+                cday = datetime.strptime(time_, '%Y年%m月%d日')
+                new_data = cday.strftime('%Y%m%d')
+
+                self.df['报告日期'][idx] = new_data
+        except:
+            pytest.set_trace()
+
     def export_(self):
-        self.df.to_csv(self.new_file_path)
+        self.df.to_csv(self.new_file_path, index=False)
         pass
 
 
@@ -93,7 +103,7 @@ class LightFile(DataDictTable):
 
 def compare():
     star_path = "data0115/new_start_table.csv"
-    little_path = "data0115/new_外院肾穿.csv"
+    little_path = "肾穿集合/new_外院肾穿.csv"
 
     star_obj = DataDictTable(star_path)
     star_df = star_obj.df
@@ -158,8 +168,8 @@ def compare():
     pytest.set_trace()
 
 
-def export(df):
-    df.to_excel('new_star_shenchuan.csv')
+def export_(df):
+    df.to_csv('new_star_shenchuan.csv', index=False)
     pass
 
 
@@ -172,6 +182,7 @@ def fill_col(little_df, start_df, each_name, each_age=None, each_gender=None, ea
                          & (start_df['入院日期'] == each_date),
                          '光镜+免疫荧光'] = little_df['光镜+免疫荧光']
         start_df.loc[start_df['姓名'] == each_name, '光镜+免疫荧光'] = little_df['光镜+免疫荧光']
+        start_df.loc[start_df['姓名'] == each_name, '报告日期'] = little_df['报告日期']
         print('fill.', each_name)
     except:
         pytest.set_trace()

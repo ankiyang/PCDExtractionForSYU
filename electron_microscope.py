@@ -47,6 +47,11 @@ def elec_lines():
 
 
 def write_elecinfo():
+
+    with open('elecinfo.csv','r', encoding='utf-8') as csv_file:
+
+        pass
+
     pass
 
 

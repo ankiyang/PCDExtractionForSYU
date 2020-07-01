@@ -180,7 +180,7 @@ class FileHandler(object):
 
     def line_creation(self):
         line = [self.attr_dict[at] for at in self.attr_lst]
-        out = open('final2.csv','a', newline='')
+        out = open('final2.csv', 'a', newline='')
         csv_write = csv.writer(out, dialect='excel')
         csv_write.writerow(line)
         out.close()
@@ -205,10 +205,13 @@ class FileHandler(object):
         light_name_number = "%s,%s" % (self.attr_dict['name'], self.attr_dict['admission_number'])
         if light_name_number in elec_:
             self.attr_dict['elec_info'] = elec_[light_name_number][-1]
+        # TODO: also need to extract unused data to another file
 
         file = open("repeat_record", encoding="utf-8", mode="a")
         file.write(light_name_number)
         file.close()
+
+
         pass
 
 
